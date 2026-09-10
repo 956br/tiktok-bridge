@@ -1,5 +1,5 @@
-const { WebcastPushConnection } = require('tiktok-live-connector');
-const { WebSocketServer } = require('ws');
+import { TikTokLiveConnection, WebcastEvent } from 'tiktok-live-connector';
+import { WebSocketServer } from 'ws';
 
 const wss = new WebSocketServer({ port: process.env.PORT || 8080 });
 
@@ -13,17 +13,19 @@ wss.on('connection', (ws, req) => {
     return;
   }
 
-  // 👇 أضفنا المفتاح هنا
-  const tiktokLive = new WebcastPushConnection(username, {
-    signApiKey: 'euler_NmRmYTIyZmM0MTVkOTllYmQ0MDczMTI1ZDE1NmUwNmQ3ZmY3NjhjODcwZjMzOTFkNzgwZTk0'
+  // 👇 غيّر "ضع_مفتاحك_هنا" بمفتاحك الحقيقي من لوحة EulerStream
+  const tiktokLive = new TikTokLiveConnection(username, {
+    signApiKey: 'euler_NmRmYTIyZmM0MTVkOTllYmQ0MDczMTI1ZDE1NmUwNmQ3ZmY3NjhjODcwZjMzOTFkNzgwZTk0',
+    connectWithUniqueId: true,   // يخلي EulerStream يجيب معلومات الغرفة بدل سيرفرنا (يتفادى حظر الـ IP)
+    disableEulerFallbacks: false
   });
 
   tiktokLive.connect()
     .then(() => ws.send(JSON.stringify({ status: `✅ متصل بحساب ${username}` })))
     .catch(err => ws.send(JSON.stringify({ error: `❌ ما قدرت أتصل بـ ${username}: ${err.message}` })));
 
-  tiktokLive.on('chat', data => {
-    ws.send(JSON.stringify({ user: data.uniqueId, comment: data.comment }));
+  tiktokLive.on(WebcastEvent.CHAT, data => {
+    ws.send(JSON.stringify({ user: data.user.uniqueId, comment: data.comment }));
   });
 
   ws.on('close', () => {
