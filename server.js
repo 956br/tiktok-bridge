@@ -15,7 +15,7 @@ wss.on('connection', (ws, req) => {
 
   // 👇 غيّر "ضع_مفتاحك_هنا" بمفتاحك الحقيقي من لوحة EulerStream
   const tiktokLive = new TikTokLiveConnection(username, {
-    signApiKey: 'ضع_مفتاحك_هنا',
+    signApiKey: 'euler_NmRmYTIyZmM0MTVkOTllYmQ0MDczMTI1ZDE1NmUwNmQ3ZmY3NjhjODcwZjMzOTFkNzgwZTk0',
     connectWithUniqueId: true,   // يخلي EulerStream يجيب معلومات الغرفة بدل سيرفرنا (يتفادى حظر الـ IP)
     disableEulerFallbacks: false
   });
