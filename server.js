@@ -20,16 +20,41 @@ wss.on('connection', (ws, req) => {
     disableEulerFallbacks: false
   });
 
+  console.log(`🔌 محاولة اتصال جديدة بحساب: ${username}`);
+
   tiktokLive.connect()
-    .then(() => ws.send(JSON.stringify({ status: `✅ متصل بحساب ${username}` })))
-    .catch(err => ws.send(JSON.stringify({ error: `❌ ما قدرت أتصل بـ ${username}: ${err.message}` })));
+    .then(() => {
+      console.log(`✅ نجح الاتصال بـ ${username}`);
+      ws.send(JSON.stringify({ status: `✅ متصل بحساب ${username}` }));
+    })
+    .catch(err => {
+      console.log('❌ فشل الاتصال - التفاصيل الكاملة:');
+      console.log('  الرسالة:', err?.message);
+      console.log('  النوع:', err?.constructor?.name);
+      console.log('  الكامل:', JSON.stringify(err, Object.getOwnPropertyNames(err)));
+      ws.send(JSON.stringify({ error: `❌ ما قدرت أتصل بـ ${username}: ${err.message}` }));
+    });
 
   tiktokLive.on(WebcastEvent.CHAT, data => {
     // حقول الإصدار 2.x الصحيحة
     ws.send(JSON.stringify({ user: data?.user?.nickname, comment: data?.content }));
   });
 
+  // نبضة كل 25 ثانية تمنع قطع الاتصال بسبب الخمول
+  const keepAlive = setInterval(() => {
+    if (ws.readyState === ws.OPEN) {
+      ws.ping();
+      ws.send(JSON.stringify({ ping: true }));
+    }
+  }, 25000);
+
   ws.on('close', () => {
+    console.log(`🔌 انقطع اتصال ${username}`);
+    clearInterval(keepAlive);
     tiktokLive.disconnect();
+  });
+
+  tiktokLive.on('disconnected', () => {
+    console.log(`⚠️ تيك توك قطع الاتصال بـ ${username}`);
   });
 });
