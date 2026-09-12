@@ -3,6 +3,14 @@ import { WebSocketServer } from 'ws';
 
 const wss = new WebSocketServer({ port: process.env.PORT || 8080 });
 
+// 👇 غيّر "ضع_مفتاحك_هنا" بمفتاحك الحقيقي من EulerStream
+const API_KEY = 'euler_NmRmYTIyZmM0MTVkOTllYmQ0MDczMTI1ZDE1NmUwNmQ3ZmY3NjhjODcwZjMzOTFkNzgwZTk0';
+
+const MAX_TRIES = 5;        // عدد المحاولات قبل الاستسلام
+const DELAY_MS = 4000;      // الانتظار بين كل محاولة
+
+const wait = (ms) => new Promise(r => setTimeout(r, ms));
+
 wss.on('connection', (ws, req) => {
   const url = new URL(req.url, `http://${req.headers.host}`);
   const username = url.searchParams.get('user');
@@ -13,35 +21,55 @@ wss.on('connection', (ws, req) => {
     return;
   }
 
-  // 👇 غيّر "ضع_مفتاحك_هنا" بمفتاحك الحقيقي من EulerStream
-  const tiktokLive = new TikTokLiveConnection(username, {
-    signApiKey: 'euler_NmRmYTIyZmM0MTVkOTllYmQ0MDczMTI1ZDE1NmUwNmQ3ZmY3NjhjODcwZjMzOTFkNzgwZTk0',
-    connectWithUniqueId: true,      // يخلي EulerStream يجيب Room ID بدل سيرفرنا
-    disableEulerFallbacks: false
-  });
+  let tiktokLive = null;
+  let closed = false;
+  let keepAlive = null;
 
-  console.log(`🔌 محاولة اتصال جديدة بحساب: ${username}`);
+  async function tryConnect() {
+    for (let attempt = 1; attempt <= MAX_TRIES; attempt++) {
+      if (closed) return;
 
-  tiktokLive.connect()
-    .then(() => {
-      console.log(`✅ نجح الاتصال بـ ${username}`);
-      ws.send(JSON.stringify({ status: `✅ متصل بحساب ${username}` }));
-    })
-    .catch(err => {
-      console.log('❌ فشل الاتصال - التفاصيل الكاملة:');
-      console.log('  الرسالة:', err?.message);
-      console.log('  النوع:', err?.constructor?.name);
-      console.log('  الكامل:', JSON.stringify(err, Object.getOwnPropertyNames(err)));
-      ws.send(JSON.stringify({ error: `❌ ما قدرت أتصل بـ ${username}: ${err.message}` }));
-    });
+      tiktokLive = new TikTokLiveConnection(username, {
+        signApiKey: API_KEY,
+        connectWithUniqueId: true,
+        disableEulerFallbacks: false
+      });
 
-  tiktokLive.on(WebcastEvent.CHAT, data => {
-    // حقول الإصدار 2.x الصحيحة
-    ws.send(JSON.stringify({ user: data?.user?.nickname, comment: data?.content }));
-  });
+      tiktokLive.on(WebcastEvent.CHAT, data => {
+        if (ws.readyState === ws.OPEN) {
+          ws.send(JSON.stringify({ user: data?.user?.nickname, comment: data?.content }));
+        }
+      });
 
-  // نبضة كل 25 ثانية تمنع قطع الاتصال بسبب الخمول
-  const keepAlive = setInterval(() => {
+      tiktokLive.on('disconnected', () => {
+        console.log(`⚠️ تيك توك قطع الاتصال بـ ${username}`);
+      });
+
+      try {
+        console.log(`🔌 محاولة ${attempt} من ${MAX_TRIES} للاتصال بـ ${username}`);
+        await tiktokLive.connect();
+        console.log(`✅ نجح الاتصال بـ ${username} من المحاولة ${attempt}`);
+        ws.send(JSON.stringify({ status: `✅ متصل بحساب ${username}` }));
+        return;
+      } catch (err) {
+        console.log(`❌ فشلت المحاولة ${attempt}: ${err?.message}`);
+        try { tiktokLive.disconnect(); } catch (e) {}
+        tiktokLive = null;
+
+        if (attempt < MAX_TRIES) {
+          ws.send(JSON.stringify({ status: `⏳ المحاولة ${attempt} فشلت، جاري إعادة المحاولة...` }));
+          await wait(DELAY_MS);
+        } else {
+          ws.send(JSON.stringify({ error: `❌ ما قدرت أتصل بـ ${username} بعد ${MAX_TRIES} محاولات: ${err?.message}` }));
+        }
+      }
+    }
+  }
+
+  tryConnect();
+
+  // نبضة تمنع قطع الاتصال بسبب الخمول
+  keepAlive = setInterval(() => {
     if (ws.readyState === ws.OPEN) {
       ws.ping();
       ws.send(JSON.stringify({ ping: true }));
@@ -49,12 +77,11 @@ wss.on('connection', (ws, req) => {
   }, 25000);
 
   ws.on('close', () => {
-    console.log(`🔌 انقطع اتصال ${username}`);
-    clearInterval(keepAlive);
-    tiktokLive.disconnect();
-  });
-
-  tiktokLive.on('disconnected', () => {
-    console.log(`⚠️ تيك توك قطع الاتصال بـ ${username}`);
+    console.log(`🔌 انقطع اتصال المتصفح بـ ${username}`);
+    closed = true;
+    if (keepAlive) clearInterval(keepAlive);
+    if (tiktokLive) {
+      try { tiktokLive.disconnect(); } catch (e) {}
+    }
   });
 });
