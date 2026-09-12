@@ -23,32 +23,14 @@ wss.on('connection', (ws, req) => {
 
   async function start() {
     tiktokLive = new TikTokLiveConnection(username, {
-      signApiKey: API_KEY,
-      enableExtendedGiftInfo: true
+      signApiKey: API_KEY
     });
 
-    // التعليقات
     tiktokLive.on(WebcastEvent.CHAT, data => {
       if (ws.readyState === ws.OPEN) {
         const comment = data?.comment ?? data?.content;
         ws.send(JSON.stringify({ user: data?.user?.nickname, comment }));
       }
-    });
-
-    // الهدايا
-    tiktokLive.on(WebcastEvent.GIFT, data => {
-      if (ws.readyState !== ws.OPEN) return;
-      const giftType = data?.giftDetails?.giftType;
-      if (giftType === 1 && !data?.repeatEnd) return;
-      ws.send(JSON.stringify({
-        type: 'gift',
-        user: data?.user?.nickname,
-        giftName: data?.giftDetails?.giftName,
-        giftId: data?.giftId,
-        giftType: giftType,
-        diamonds: data?.giftDetails?.diamondCount,
-        count: data?.repeatCount || 1
-      }));
     });
 
     tiktokLive.on('disconnected', () => {
