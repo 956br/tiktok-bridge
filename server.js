@@ -13,10 +13,10 @@ wss.on('connection', (ws, req) => {
     return;
   }
 
-  // 👇 غيّر "ضع_مفتاحك_هنا" بمفتاحك الحقيقي من لوحة EulerStream
+  // 👇 غيّر "ضع_مفتاحك_هنا" بمفتاحك الحقيقي من EulerStream
   const tiktokLive = new TikTokLiveConnection(username, {
     signApiKey: 'euler_NmRmYTIyZmM0MTVkOTllYmQ0MDczMTI1ZDE1NmUwNmQ3ZmY3NjhjODcwZjMzOTFkNzgwZTk0',
-    connectWithUniqueId: true,   // يخلي EulerStream يجيب معلومات الغرفة بدل سيرفرنا (يتفادى حظر الـ IP)
+    connectWithUniqueId: true,      // يخلي EulerStream يجيب Room ID بدل سيرفرنا
     disableEulerFallbacks: false
   });
 
@@ -25,6 +25,7 @@ wss.on('connection', (ws, req) => {
     .catch(err => ws.send(JSON.stringify({ error: `❌ ما قدرت أتصل بـ ${username}: ${err.message}` })));
 
   tiktokLive.on(WebcastEvent.CHAT, data => {
+    // حقول الإصدار 2.x الصحيحة
     ws.send(JSON.stringify({ user: data?.user?.nickname, comment: data?.content }));
   });
 
