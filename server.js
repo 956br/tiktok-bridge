@@ -6,39 +6,33 @@ const wss = new WebSocketServer({ port: process.env.PORT || 8080 });
 // 👇 غيّر "ضع_مفتاحك_هنا" بمفتاحك الحقيقي من EulerStream
 const API_KEY = 'euler_NmRmYTIyZmM0MTVkOTllYmQ0MDczMTI1ZDE1NmUwNmQ3ZmY3NjhjODcwZjMzOTFkNzgwZTk0';
 
-// يبحث داخل أي كائن عن رقم غرفة (سلسلة أرقام طويلة)
-function extractRoomId(obj, depth = 0) {
-  if (depth > 6 || obj == null) return null;
+// يحوّل الرد إلى نص ويلتقط أول سلسلة أرقام طويلة (رقم الغرفة)
+function extractRoomId(result) {
+  let text = '';
 
-  if (typeof obj === 'string' || typeof obj === 'number' || typeof obj === 'bigint') {
-    const s = String(obj);
-    return /^\d{10,}$/.test(s) ? s : null;
+  // نجرب المفاتيح المباشرة أول
+  const direct = result?.roomId ?? result?.room_id
+    ?? result?.data?.roomId ?? result?.data?.room_id;
+  if (direct != null && /^\d{10,}$/.test(String(direct))) {
+    return String(direct);
   }
 
-  if (Array.isArray(obj)) {
-    for (const item of obj) {
-      const found = extractRoomId(item, depth + 1);
-      if (found) return found;
-    }
-    return null;
-  }
-
-  if (typeof obj === 'object') {
-    // نجرب المفاتيح المتوقعة أول
-    for (const key of ['roomId', 'room_id', 'roomID', 'id']) {
-      if (obj[key] != null) {
-        const found = extractRoomId(obj[key], depth + 1);
-        if (found) return found;
+  // ثم نحوّل كل شي لنص ونبحث بالتعبير النمطي
+  try {
+    const seen = new WeakSet();
+    text = JSON.stringify(result, (k, v) => {
+      if (typeof v === 'object' && v !== null) {
+        if (seen.has(v)) return undefined;
+        seen.add(v);
       }
-    }
-    // ثم نبحث في كل المفاتيح
-    for (const key of Object.keys(obj)) {
-      const found = extractRoomId(obj[key], depth + 1);
-      if (found) return found;
-    }
+      return typeof v === 'bigint' ? String(v) : v;
+    });
+  } catch (e) {
+    text = String(result);
   }
 
-  return null;
+  const match = text && text.match(/\b\d{15,22}\b/);
+  return match ? match[0] : null;
 }
 
 wss.on('connection', (ws, req) => {
@@ -79,7 +73,20 @@ wss.on('connection', (ws, req) => {
         uniqueId: username
       });
 
-      console.log('📦 شكل الرد:', JSON.stringify(result).slice(0, 500));
+      try {
+        const seen = new WeakSet();
+        const dump = JSON.stringify(result, (k, v) => {
+          if (typeof v === 'object' && v !== null) {
+            if (seen.has(v)) return undefined;
+            seen.add(v);
+          }
+          return typeof v === 'bigint' ? String(v) : v;
+        });
+        console.log('📦 شكل الرد:', String(dump).slice(0, 800));
+      } catch (e) {
+        console.log('📦 شكل الرد (نص):', String(result).slice(0, 800));
+        console.log('📦 المفاتيح:', Object.keys(result || {}).join(', '));
+      }
 
       const roomId = extractRoomId(result);
       if (!roomId) throw new Error('ما قدرت أستخرج رقم الغرفة من رد EulerStream');
