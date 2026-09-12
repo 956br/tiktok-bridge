@@ -4,7 +4,8 @@ import { WebSocketServer } from 'ws';
 const wss = new WebSocketServer({ port: process.env.PORT || 8080 });
 
 // 👇 حط مفتاحك من EulerStream هنا
-const API_KEY = 'euler_NmRmYTIyZmM0MTVkOTllYmQ0MDczMTI1ZDE1NmUwNmQ3ZmY3NjhjODcwZjMzOTFkNzgwZTk0';
+const API_KEY = 'euler_NmRmYTIyZmM0MTVkOTllYmQ0MDczMTI1ZDE1NmUwNmQ3ZmY3NjhjODcwZjMzOTFkNzgwZTk0
+';
 
 console.log('🚀 السيرفر شغال على المنفذ 8080 — بانتظار الاتصال');
 
