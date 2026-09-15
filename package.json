@@ -1,0 +1,10 @@
+{
+  "name": "tiktok-bridge",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "server-gift.js",
+  "dependencies": {
+    "@tiktool/live": "^2.12.1",
+    "ws": "^8.16.0"
+  }
+}
