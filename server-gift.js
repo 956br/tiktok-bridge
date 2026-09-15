@@ -1,12 +1,12 @@
 import { TikTokLive } from '@tiktool/live';
 import { WebSocketServer } from 'ws';
 
-const wss = new WebSocketServer({ port: process.env.PORT || 8080 });
+const wss = new WebSocketServer({ port: process.env.PORT || 4000 });
 
 // 👇 حط مفتاحك المجاني من tik.tools هنا (بدون بطاقة بنكية): https://tik.tools
 const API_KEY = 'tk_5cd1098171a4216399d345c6afaf2c7dd7b9d362de71bee3';
 
-console.log('🚀 السيرفر شغال على المنفذ 8080 — بانتظار الاتصال');
+console.log('🚀 السيرفر شغال على المنفذ 4000 — بانتظار الاتصال');
 
 wss.on('connection', (ws, req) => {
   const url = new URL(req.url, `http://${req.headers.host}`);
