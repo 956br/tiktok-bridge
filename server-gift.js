@@ -29,7 +29,12 @@ wss.on('connection', (ws, req) => {
 
     live.on('chat', e => {
       if (ws.readyState === ws.OPEN) {
-        ws.send(JSON.stringify({ type: 'chat', user: e.user?.nickname, comment: e.comment }));
+        ws.send(JSON.stringify({
+          type: 'chat',
+          user: e.user?.nickname,
+          comment: e.comment,
+          avatar: e.user?.avatarLargeUrl || e.user?.profilePicture
+        }));
       }
     });
 
